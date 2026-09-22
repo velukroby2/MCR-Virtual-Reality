@@ -4,12 +4,13 @@ export class MediaBank{
   constructor(){this.items={};this.audio=false;this.output='rescue';}
   async load(){
     const response=await fetch('./media-manifest.json');if(!response.ok)throw new Error('Media manifest missing. Run the build command.');
-    const manifest=await response.json();for(const source of SOURCES){const entry=manifest[source.id];this.set(source.id,entry.url,entry.kind,entry.name);}
+    const manifest=await response.json();for(const source of SOURCES){const entry=manifest[source.id];this.set(source.id,entry.url,entry.kind,entry.name,false,entry.poster);}
   }
-  set(id,url,kind,name,blob=false){
+  set(id,url,kind,name,blob=false,posterUrl=null){
     const old=this.items[id];if(old?.kind==='video'){old.el.pause();old.el.removeAttribute('src');old.el.load();}if(old?.blob)URL.revokeObjectURL(old.url);
     const el=kind==='video'?document.createElement('video'):new Image();
     const item={el,kind,name,url,blob,error:false,blocked:false};this.items[id]=item;
+    if(posterUrl&&kind==='video'){const poster=new Image();poster.src=posterUrl;item.poster=poster;el.poster=posterUrl;}
     el.addEventListener('error',()=>{item.error=true;});
     if(kind==='video'){el.muted=true;el.volume=.3;el.loop=true;el.playsInline=true;el.setAttribute('playsinline','');el.preload='auto';}
     el.src=url;
@@ -17,6 +18,7 @@ export class MediaBank{
   }
   play(item){item.el.play().then(()=>{item.blocked=false;},()=>{item.blocked=true;});}
   prime(){for(const item of Object.values(this.items))if(item.kind==='video')this.play(item);}
+  pause(){for(const item of Object.values(this.items))if(item.kind==='video')item.el.pause();}
   route(state,restart=false){this.output=state.output;const current=this.items[state.output];if(restart&&current?.kind==='video'&&current.el.readyState>0)try{current.el.currentTime=0;}catch{}this.updateAudio();}
   updateAudio(){for(const [id,item]of Object.entries(this.items))if(item.kind==='video')item.el.muted=!(this.audio&&id===this.output);}
   local(files){let count=0;const ignored=[];for(const file of files){const match=matchFilename(file.name);if(!match){ignored.push(file.name);continue;}this.set(match.id,URL.createObjectURL(file),match.kind,file.name,true);count++;}this.updateAudio();this.prime();return {count,ignored};}
@@ -25,6 +27,8 @@ export class MediaBank{
     const iw=item?.kind==='video'?item.el.videoWidth:item?.el.naturalWidth,ih=item?.kind==='video'?item.el.videoHeight:item?.el.naturalHeight;
     if(iw&&ih&&!item.error&&(item.kind!=='video'||item.el.readyState>=2)){
       const ratio=Math.min(w/iw,h/ih),dw=iw*ratio,dh=ih*ratio;ctx.drawImage(item.el,x+(w-dw)/2,y+(h-dh)/2,dw,dh);
+    }else if(item?.poster?.naturalWidth&&!item.error){
+      const ratio=Math.min(w/item.poster.naturalWidth,h/item.poster.naturalHeight),dw=item.poster.naturalWidth*ratio,dh=item.poster.naturalHeight*ratio;ctx.drawImage(item.poster,x+(w-dw)/2,y+(h-dh)/2,dw,dh);ctx.fillStyle='#101c22cb';ctx.fillRect(x,y+h-23,w,23);ctx.font='11px Arial';ctx.fillStyle='#d3e2e8';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('VIDEO POSTER · LOADING',x+w/2,y+h-11);
     }else{ctx.fillStyle=source.color+'22';ctx.fillRect(x,y,w,h);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=source.color;ctx.font=`600 ${Math.max(13,w*.065)}px Arial`;ctx.fillText(source.name.toUpperCase(),x+w/2,y+h*.43);ctx.fillStyle='#a6b7c0';ctx.font=`${Math.max(9,w*.022)}px Arial`;ctx.fillText(item?.error?'MEDIA UNAVAILABLE · USE H.264 MP4':'PLACEHOLDER / LOADING',x+w/2,y+h*.61);}
     if(item?.blocked){ctx.fillStyle='#201910e8';ctx.fillRect(x,y+h-24,w,24);ctx.fillStyle='#f3be8d';ctx.font='12px Arial';ctx.textAlign='center';ctx.fillText('Tap a control to enable video playback',x+w/2,y+h-12);}
   }
