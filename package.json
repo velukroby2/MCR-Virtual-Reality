@@ -1,0 +1,12 @@
+{
+  "name": "mcr-live-lite",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "node scripts/serve.mjs",
+    "test": "node --test --test-isolation=none tests/*.test.mjs"
+  },
+  "engines": { "node": ">=24 <25" }
+}

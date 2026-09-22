@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: mcr-live-lite
+    runtime: static
+    buildCommand: node scripts/build.mjs
+    staticPublishPath: ./dist
+    envVars:
+      - key: NODE_VERSION
+        value: 24.21.0
+      - key: SKIP_INSTALL_DEPS
+        value: "true"
+    headers:
+      - path: /*
+        name: Permissions-Policy
+        value: "accelerometer=(self), gyroscope=(self), magnetometer=(self), fullscreen=(self)"
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
