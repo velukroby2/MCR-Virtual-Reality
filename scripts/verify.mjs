@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import {once} from 'node:events';
 process.env.PORT='0';
+delete process.env.HOST; // Verify the default public bind, not a test-only override.
 const {server}=await import('./serve.mjs');
 if(!server.listening)await once(server,'listening');
 const base=`http://127.0.0.1:${server.address().port}`;
 let checks=0;
 try{
+  assert.equal(server.address().address,'0.0.0.0','Default listener must be reachable by Render, not localhost-only');checks++;
   const paths=['/','/style.css','/src/app.js','/src/model.js','/src/media.js','/src/screens.js','/src/viewer.js','/src/orientation.js','/src/gaze.js','/vendor/three.module.js','/vendor/three.core.js','/vendor/LICENSE.txt','/media-manifest.json'];
   const manifest=await(await fetch(base+'/media-manifest.json')).json();assert.equal(Object.keys(manifest).length,4);checks++;
   for(const entry of Object.values(manifest))paths.push('/'+entry.url.slice(2));

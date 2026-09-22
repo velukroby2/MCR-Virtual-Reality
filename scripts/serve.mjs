@@ -3,7 +3,7 @@ import {createReadStream} from 'node:fs';
 import {stat} from 'node:fs/promises';
 import {resolve,sep,extname} from 'node:path';
 import {build} from './build.mjs';
-const root=await build(),port=Number(process.env.PORT||4180);
+const root=await build(),port=Number(process.env.PORT||4180),host=process.env.HOST||'0.0.0.0';
 const types={'.html':'text/html; charset=utf-8','.css':'text/css','.js':'text/javascript','.json':'application/json','.svg':'image/svg+xml','.mp4':'video/mp4','.webm':'video/webm','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.txt':'text/plain'};
 export const server=http.createServer(async(req,res)=>{
   res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Cache-Control','no-cache');
@@ -22,5 +22,5 @@ export const server=http.createServer(async(req,res)=>{
     if(req.method==='HEAD'){res.end();return;}createReadStream(file,{start,end}).on('error',()=>res.destroy()).pipe(res);
   }catch{res.writeHead(404);res.end('Not found');}
 });
-server.listen(port,'127.0.0.1',()=>console.log(`MCR Live: http://localhost:${server.address().port} — use Render HTTPS for phone sensors.`));
+server.listen(port,host,()=>console.log(`MCR Live listening on ${host}:${server.address().port} — local preview http://localhost:${server.address().port}; use your Render HTTPS URL for phone sensors.`));
 server.on('error',error=>{console.error(error.message);process.exitCode=1;});
