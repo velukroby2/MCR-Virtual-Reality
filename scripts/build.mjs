@@ -18,6 +18,6 @@ export async function build(){
     if(!manifest[id])throw new Error(`Missing media: ${name}. Keep its placeholder SVG or supply a video.`);
   }
   await writeFile(join(dist,'media-manifest.json'),JSON.stringify(manifest,null,2));
-  console.log('Built MCR Reference Studio 1.3: anti-aliased stereo, high-resolution UI text and comfort-focused tracking. No dependency install required.');return dist;
+  console.log('Built MCR Reference Studio 1.4: maximum-default device graphics controls and optimized 720p demo media. No dependency install required.');return dist;
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href)await build();

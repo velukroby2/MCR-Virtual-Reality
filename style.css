@@ -1,10 +1,10 @@
 :root{color-scheme:dark;font-family:Inter,"Segoe UI",Arial,sans-serif;color:#e8eae5;background:#141719;--orange:#f5a46b}
 *{box-sizing:border-box}
 body{margin:0}
-button,input{font:inherit}
+button,input,select{font:inherit}
 button{cursor:pointer;color:inherit;background:#282e32;border:1px solid #424a4f;border-radius:5px;padding:10px 14px;font-size:12px}
 button:hover{background:#384149}
-button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--orange);outline-offset:3px}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--orange);outline-offset:3px}
 button:disabled{opacity:.4;cursor:not-allowed}
 button[aria-pressed=true]{border-color:var(--orange);background:#49382b;color:#ffcca8}
 button.take,#vr-open,#start-vr{background:var(--orange);border-color:var(--orange);color:#241b14;font-weight:650}
@@ -53,13 +53,22 @@ code{background:#283037;padding:2px 5px;border-radius:4px;font-size:11px;color:#
 footer{display:flex;justify-content:space-between;gap:15px;color:#71868f;font-size:9px;padding:12px 0}
 footer label{display:flex;align-items:center;gap:6px}
 input[type=checkbox]{accent-color:var(--orange)}
-dialog{max-width:520px;width:calc(100% - 30px);border:1px solid #647277;border-radius:13px;background:#202a2f;color:#eaf0e9;padding:28px;max-height:90dvh}
+dialog{max-width:520px;width:calc(100% - 30px);border:1px solid #647277;border-radius:13px;background:#202a2f;color:#eaf0e9;padding:28px;max-height:90dvh;overflow:auto}
 dialog::backdrop{background:#000b}
 dialog h2{font-size:24px;font-weight:500;margin:0 0 15px}
 dialog p{font-size:12px;margin:14px 0}
 dialog label{display:flex;align-items:center;justify-content:space-between;font-size:12px;gap:14px;margin-top:20px}
 dialog input{width:160px;accent-color:var(--orange)}
 dialog output{display:inline-block;min-width:48px;margin-left:6px;color:#f0bd91;font:11px Consolas,monospace;text-align:right}
+.graphics-settings{border:1px solid #50636c;border-radius:9px;margin:24px 0 0;padding:6px 14px 15px;background:#172229}
+.graphics-settings legend{padding:0 8px;color:#e6b98e;font-size:11px;letter-spacing:.5px;text-transform:uppercase}
+.graphics-settings label{margin-top:12px}
+.graphics-settings select{width:190px;max-width:54%;color:#eaf0e9;background:#28363d;border:1px solid #566870;border-radius:5px;padding:8px 9px}
+.graphics-settings .check-setting{align-items:flex-start;border-top:1px solid #3a4950;padding-top:13px}
+.graphics-settings .check-setting span{display:block;max-width:390px}
+.graphics-settings .check-setting small{display:block;color:#91a2aa;line-height:1.45;margin-top:4px;font-size:9px}
+.graphics-settings input[type=checkbox]{width:auto;flex:0 0 auto;margin-top:3px}
+.graphics-settings p{margin:12px 0 0}
 .small{font-size:10px;color:#8f9f9f}
 .dialog-buttons{display:grid;gap:9px;margin-top:20px}
 #tracking-note{color:#eab082}
@@ -96,6 +105,7 @@ figure.television{width:100%;grid-column:auto}
 footer{flex-direction:column}
 dialog{padding:22px}
 dialog input{width:130px}
+.graphics-settings select{width:170px}
 }
 
 /* Reference Studio: give the booth more vertical room and keep HUD labels off the screens. */

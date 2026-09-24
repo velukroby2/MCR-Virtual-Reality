@@ -1,6 +1,6 @@
 # Replace the demo media later
 
-The current sample clips can stay in place while you test the room, resolution and headset comfort. Replacing them later does not require any JavaScript changes.
+The current user-supplied clips can stay in place while you test the room, resolution and headset comfort. Replacing them later does not require any JavaScript changes.
 
 ## Quick private test on the phone
 
@@ -38,12 +38,6 @@ ffmpeg -i source.mp4 -vf "scale=1280:720:force_original_aspect_ratio=decrease,pa
 
 Change only the final output name for Input B and Break. If the source has no audio, add `-an` instead of the AAC options.
 
-## Remove the old sample attribution after the swap
+## Rights and documentation after a swap
 
-Only after all supplied Sintel clips and posters have been removed:
-
-1. Delete `media/FOOTAGE.md`.
-2. Remove the **Sintel / Blender Foundation** credit from the footer in `index.html`.
-3. Update the media description inside **Your footage & quick controls** in `index.html`.
-
-Keep attribution for any new footage according to its own licence.
+Update `media/FOOTAGE.md` with the new files' provenance, encoding facts, and licence or authorization requirements. Also update the short description inside **Your footage & quick controls** in `index.html` if the format changes. Keep any attribution required by the replacement footage's licence.

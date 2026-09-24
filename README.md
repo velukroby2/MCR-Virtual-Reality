@@ -1,4 +1,4 @@
-# MCR Live — Reference Studio 1.3
+# MCR Live — Reference Studio 1.4
 
 **Photo-referenced browser/phone-VR simulator. Six controls. Two monitors and one TV.**
 
@@ -6,7 +6,7 @@
 
 Upload/replace the **complete contents** of this ZIP in your existing GitHub repository, then commit and use **Render → Manual Deploy → Deploy latest commit**. This is a full scene/media update, not just the earlier one-file server fix. Include the new `assets/` folder, `src/room.js`, `vendor/RoundedBoxGeometry.js`, and all media files. Back up any custom media first.
 
-Your current working Web Service settings can remain **`yarn install; yarn build`** and **`yarn start`**. The `0.0.0.0` / Render `PORT` fix is retained. After deployment, refresh the browser (hard-refresh if you see the old room). The build log now identifies **MCR Reference Studio 1.3**.
+Your current working Web Service settings can remain **`yarn install; yarn build`** and **`yarn start`**. The `0.0.0.0` / Render `PORT` fix is retained. After deployment, refresh the browser (hard-refresh if you see the old room). The build log now identifies **MCR Reference Studio 1.4**.
 
 ## Upload this ZIP to GitHub → Render
 
@@ -47,14 +47,15 @@ A Static Site is still the simpler option for this entirely client-side app. An 
 
 The supplied photograph **is now included** as `assets/room-reference.jpg`, used locally for reflections and the original-photo view. Publishing this app also makes that photo (including visible people and room details) publicly accessible. No other reference photos or original film downloads are bundled.
 
-If an older phone struggles, enable **Lighter graphics (lower resolution)** before entering the headset. This explicitly selects 1× rendering, disables shadow rendering and lowers screen-refresh work; the controls and footage remain available.
+The headset dialog now has separate controls for render resolution, edge smoothing, shadows, and adaptive frame protection. A fresh device starts at the maximum settings. If an older phone still struggles, the footer's **Emergency 1× graphics** switch selects 1× rendering and disables eye-buffer MSAA and shadow rendering; the controls and footage remain available.
 
-## Phone sharpness and comfort changes in 1.2–1.3
+## Phone sharpness and comfort changes in 1.2–1.4
 
 - Each off-screen stereo eye now uses up to **4× MSAA**. This is the important 1.3 correction: anti-aliasing on the outer WebGL canvas does not affect an eye rendered into a texture, so the earlier build could still show stair-stepped TV frames, desk edges and shadows despite using native phone resolution.
 - The TV and monitor UI canvases are now **2048×1152**. Desk buttons, headset utilities, status messages and room labels are rendered at 2× internal resolution, then downsampled cleanly.
 - Textures containing writing use trilinear mipmaps and up to 16× anisotropic filtering. Small labels were enlarged, made heavier and given higher contrast; the button sublabels are now 19 px logical text instead of 14 px.
 - The primary shadow map is now 2048×2048, soft contact maps are doubled, and rounded boundaries use smoother geometry.
+- Version 1.4 exposes **100/85/70/50% render resolution**, **up to 4×/2×/off eye-buffer smoothing**, and **2048/1024/off shadows** in the headset dialog. Maximum is selected by default, choices are remembered on that device, and unsupported requests are safely capped to the browser/GPU limit.
 
 - Phone rendering now starts at the device's full `devicePixelRatio`. The old mobile cap of 1.35× has been removed, so a 3× phone now gets a 3× output canvas and full-size stereo eye buffers.
 - The renderer checks the GPU's texture, renderbuffer and viewport limits before allocating. It therefore uses the highest native density the browser/GPU can safely expose rather than blindly requesting an unsupported size.
@@ -85,20 +86,18 @@ These changes reduce the two main software causes here—undersampling and head-
 
 Breaks and video inputs loop. Return from a break manually. This is local browser simulation, not real broadcast transmission. Each visitor has independent state; it is not a shared control room.
 
-## Included low-resolution footage / replacing media
+## Included optimized footage / replacing media
 
-The bundled samples are unchanged in this update. For the later swap, follow **`REPLACE_MEDIA_LATER.md`**; no JavaScript changes are required.
+This edition bundles the three videos supplied for this update:
 
-Your Drive link contains one film, **Sintel**, not a multi-video bundle. This edition includes three different short excerpts, all **640×360 at 24 fps, H.264 Baseline/yuv420p + AAC, with MP4 faststart**:
-
-- **Input A:** 24 seconds — daylight market / young dragon.
-- **Input B:** 24 seconds — sunset rooftops / flight.
-- **Break:** 20 seconds — moon/sun transition, desert and bamboo journey.
+- **Input A:** 13.247 seconds, 1280×720 at 29.97 fps, no audio.
+- **Input B:** 15 seconds, 1280×720 at 25 fps, no audio.
+- **Break:** 12.811 seconds, 1280×720 at 29.97 fps, AAC audio.
 - **Rescue:** the existing quiet standby slate (SVG).
 
-The three MP4s total about **5.13 MiB**; they loop independently. Matching JPG posters avoid a blank tile while a clip starts. These are ordinary 2D videos shown on the screens, not 360 or stereo video.
+All MP4s use hardware-friendly H.264 High Profile Level 3.1, `yuv420p`, BT.709, roughly two-second keyframe spacing, and web faststart. The 59.94 fps inputs were reduced to 29.97 fps to lower simultaneous phone decode load. Input A and Input B were reduced from about 24 MB and 96 MB; all three packaged MP4s total **14.41 MiB**. Matching 1280×720 JPG posters prevent a blank screen while a clip starts. `media/FOOTAGE.md` records exact properties, checksums, and authorization notes.
 
-**Sintel © Blender Foundation | [durian.blender.org](https://durian.blender.org/) · [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).** Clips/posters were trimmed, downscaled, letterboxed and recompressed; no endorsement is implied. Keep the UI attribution and `media/FOOTAGE.md`, which contains source timings, attribution, checksums and encoding details.
+These are user-provided assets; no public licence is asserted by the package. A Render deployment exposes repository media publicly, so publish only material you are authorized to use.
 
 To replace a clip, put files with these **exact case-sensitive names** in the `media/` folder, commit/push, and Render will rebuild:
 
@@ -127,7 +126,7 @@ For a quick test, expand **Your footage & quick controls** and choose correctly 
 - Keyboard: **1**, **2**, **Space** (take), **B** (break), **L** (return), **O** (off), **R** (recenter).
 - **Cardboard/JioDive:** open the Render HTTPS URL directly in current Chrome (Android) or Safari (iPhone). Tap **Enter headset → Start with head tracking**, grant motion permission, rotate to landscape, and insert the phone.
 - Hold your gaze on a button for **1.3 seconds**. Look away before repeating it. Look below the desk controls for **ORIGINAL 360 / 3D ROOM**, **RECENTER** and **EXIT VR**. A touch trigger or standard gamepad A button can also activate the looked-at control. Space/Enter acts as the trigger in VR.
-- Adjust FOV, lens correction and eye spacing in the headset dialog. These are generic starting points, not manufacturer-certified lens profiles. Set lens correction to zero when viewing stereo without lenses.
+- Adjust FOV, lens correction, eye spacing, render resolution, edge smoothing, shadows, and adaptive frame protection in the headset dialog. Graphics begin at maximum on a fresh device. These optical values are generic starting points, not manufacturer-certified lens profiles. Set lens correction to zero when viewing stereo without lenses.
 - Dragging switches to manual looking. Exit and re-enter headset mode to re-enable sensors. Unsupported or denied motion falls back to drag-to-look. Browser fullscreen/orientation locking is best-effort, especially on iPhone.
 
 This is **rotation-only phone VR**, not a native Quest/Pico WebXR application. Stay seated; stop if uncomfortable or your phone gets warm. Hardware compatibility and optical fit require testing on your actual device.
@@ -152,6 +151,6 @@ The built site uses only local assets/modules. No accounts, analytics, camera or
 
 Unit/geometry tests and build/resource checks are included. The visibility regression casts a 25×17 grid over each screen from the center eye and both stereo eyes: **3,825 screen-area rays**, plus physical-button picking and viewport framing checks. This catches the actual panel/monitor occlusion, rather than testing only button centers. Video encoding was independently probed and fully decoded with FFmpeg; faststart and decoded frame counts were checked.
 
-Automated tests verify native-DPR sizing, GPU-safe limits, adaptive eye-buffer scaling, stereo rendering, tracking math, scene visibility and media handling. They are **not a substitute for physical headset testing**: optical fit, browser sensor latency and thermal throttling vary by phone. Test on the actual device, and use Lighter graphics only if adaptive native mode still stutters.
+Automated tests verify native-DPR sizing, user-selected graphics levels, GPU-safe limits, adaptive eye-buffer scaling, stereo rendering, tracking math, scene visibility and media handling. They are **not a substitute for physical headset testing**: optical fit, browser sensor latency and thermal throttling vary by phone. Test on the actual device; keep adaptive frame protection on, then lower resolution, smoothing, or shadows if the phone still stutters.
 
-Three.js 0.180.0 and its RoundedBoxGeometry helper are included under the MIT license; see `vendor/LICENSE.txt`. Media has its separate license described above. The supplied room photo is not covered by the film or Three.js licenses. Product names are descriptive references only; no affiliation is claimed.
+Three.js 0.180.0 and its RoundedBoxGeometry helper are included under the MIT license; see `vendor/LICENSE.txt`. User-supplied media and the supplied room photo are not covered by that software license. Product names are descriptive references only; no affiliation is claimed.

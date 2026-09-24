@@ -46,11 +46,12 @@ export class Viewer{
     this.renderer.outputColorSpace=T.SRGBColorSpace;
     this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.12;
     this.mobile=typeof matchMedia==='function'?matchMedia('(pointer: coarse)').matches:innerWidth<900;
-    this.nativePixelRatio=displayPixelRatio();this.pixelRatio=this.nativePixelRatio;this.reduced=false;
+    this.nativePixelRatio=displayPixelRatio();this.pixelRatio=this.nativePixelRatio;this.renderScale=1;this.reduced=false;this.adaptiveEnabled=true;
     this.eyeScale=1;this.frameAverage=0;this.frameSamples=0;this.frameCooldown=0;
     this.renderLimits=this.detectRenderLimits();this.renderer.setPixelRatio(this.pixelRatio);
     if(this.renderer.shadowMap){this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap;this.renderer.shadowMap.autoUpdate=false;this.renderer.shadowMap.needsUpdate=true;}
-    this.anisotropy=Math.min(16,this.renderer.capabilities?.getMaxAnisotropy?.()||1);this.msaaSamples=Math.min(4,this.renderer.capabilities?.maxSamples||0);
+    this.anisotropy=Math.min(16,this.renderer.capabilities?.getMaxAnisotropy?.()||1);this.maxMsaaSamples=Math.min(4,this.renderer.capabilities?.maxSamples||0);this.requestedMsaaSamples=4;this.msaaSamples=this.maxMsaaSamples;
+    this.maxShadowSize=Math.min(2048,this.renderLimits.target||2048);this.requestedShadowSize=2048;this.shadowSize=this.maxShadowSize;
     this.scene=new T.Scene();this.scene.background=new T.Color('#1b242c');
     this.camera=viewerCamera();this.scene.add(this.camera);
     this.room=new T.Group();this.room.name='Interactive rebuilt control room';this.scene.add(this.room);
@@ -69,7 +70,7 @@ export class Viewer{
     const ambient=new T.HemisphereLight(0xd4e3eb,0x39424c,.68);this.scene.add(ambient);
     const key=new T.SpotLight(0xffedd5,33,7.5,1.15,.7,2);
     key.name='Soft ceiling key light';key.position.set(.35,2.59,.16);key.target.position.set(0,.63,-.35);
-    const shadowSize=Math.min(2048,this.renderLimits.target||2048);key.castShadow=true;key.shadow.mapSize.set(shadowSize,shadowSize);
+    key.castShadow=this.shadowSize>0;key.shadow.mapSize.set(this.shadowSize,this.shadowSize);this.keyLight=key;
     key.shadow.bias=-.0003;key.shadow.normalBias=.014;key.shadow.radius=2.5;key.shadow.camera.near=.2;key.shadow.camera.far=7;
     this.scene.add(key,key.target);
     const frontFill=new T.PointLight(0xcfe3f3,2.0,3.8,2);frontFill.position.set(0,2.35,-1.01);this.scene.add(frontFill);
@@ -196,9 +197,29 @@ export class Viewer{
     if(value){this.eyeScale=1;this.frameAverage=0;this.frameSamples=0;this.frameCooldown=1.5;}
     if(this.width)this.resize(this.width,this.height);
   }
-  setQuality(reduced){this.reduced=Boolean(reduced);this.eyeScale=1;this.frameAverage=0;this.frameSamples=0;const samples=this.reduced?0:this.msaaSamples;for(const target of this.targets)if(target.samples!==samples){target.samples=samples;target.dispose();}if(this.renderer.shadowMap){this.renderer.shadowMap.enabled=!this.reduced;this.renderer.shadowMap.needsUpdate=true;}if(this.width)this.resize(this.width,this.height);}
+  resetAdaptive(){this.eyeScale=1;this.frameAverage=0;this.frameSamples=0;this.frameCooldown=this.inVR?1.5:0;}
+  applyGraphics(){
+    const samples=this.reduced?0:this.msaaSamples;for(const target of this.targets)if(target.samples!==samples){target.samples=samples;target.dispose();}
+    const shadows=!this.reduced&&this.shadowSize>0;
+    if(this.keyLight){
+      this.keyLight.castShadow=shadows;
+      if(this.shadowSize>0&&this.keyLight.shadow.mapSize.width!==this.shadowSize){this.keyLight.shadow.map?.dispose?.();this.keyLight.shadow.map=null;this.keyLight.shadow.mapSize.set(this.shadowSize,this.shadowSize);}
+    }
+    if(this.renderer.shadowMap){this.renderer.shadowMap.enabled=shadows;this.renderer.shadowMap.needsUpdate=shadows;}
+    if(this.width)this.resize(this.width,this.height);
+  }
+  setGraphics({renderScale=this.renderScale,msaa=this.requestedMsaaSamples,shadowSize=this.requestedShadowSize,adaptive=this.adaptiveEnabled}={}){
+    const scale=Number(renderScale),requestedMsaa=Number(msaa),requestedShadow=Number(shadowSize);
+    if(Number.isFinite(scale))this.renderScale=Math.max(.5,Math.min(1,scale));
+    if(Number.isFinite(requestedMsaa)){this.requestedMsaaSamples=Math.max(0,Math.min(4,Math.round(requestedMsaa)));this.msaaSamples=Math.min(this.maxMsaaSamples,this.requestedMsaaSamples);}
+    if(Number.isFinite(requestedShadow)){this.requestedShadowSize=Math.max(0,Math.round(requestedShadow));this.shadowSize=this.requestedShadowSize===0?0:Math.min(this.maxShadowSize,this.requestedShadowSize);}
+    this.adaptiveEnabled=Boolean(adaptive);this.resetAdaptive();this.applyGraphics();
+    return this.graphicsInfo();
+  }
+  setQuality(reduced){this.reduced=Boolean(reduced);this.resetAdaptive();this.applyGraphics();}
+  graphicsInfo(){return{nativePixelRatio:this.nativePixelRatio,renderScale:this.renderScale,maxMsaaSamples:this.maxMsaaSamples,msaaSamples:this.reduced?0:this.msaaSamples,maxShadowSize:this.maxShadowSize,shadowSize:this.reduced?0:this.shadowSize,adaptive:this.adaptiveEnabled&&!this.reduced,reduced:this.reduced};}
   noteFrame(deltaSeconds){
-    if(!this.inVR||this.reduced||!Number.isFinite(deltaSeconds)||deltaSeconds<=0||deltaSeconds>.1)return false;
+    if(!this.inVR||this.reduced||!this.adaptiveEnabled||!Number.isFinite(deltaSeconds)||deltaSeconds<=0||deltaSeconds>.1)return false;
     this.frameAverage=this.frameSamples?this.frameAverage*.94+deltaSeconds*.06:deltaSeconds;this.frameSamples++;
     this.frameCooldown=Math.max(0,this.frameCooldown-deltaSeconds);if(this.frameSamples<90||this.frameCooldown>0)return false;
     let next=this.eyeScale;
@@ -214,7 +235,7 @@ export class Viewer{
   }
   resize(w,h){
     if(!w||!h)return;this.width=Math.round(w);this.height=Math.round(h);
-    const desired=this.reduced?1:this.nativePixelRatio;this.pixelRatio=fittedPixelRatio(desired,this.width,this.height,this.renderLimits.width,this.renderLimits.height);
+    const desired=this.reduced?1:this.nativePixelRatio*this.renderScale;this.pixelRatio=fittedPixelRatio(desired,this.width,this.height,this.renderLimits.width,this.renderLimits.height);
     this.renderer.setPixelRatio(this.pixelRatio);this.renderer.setSize(this.width,this.height,false);
     this.camera.aspect=w/h;this.camera.fov=this.inVR?this.fov:desktopFov(w/h);this.camera.updateProjectionMatrix();
     this.resizeEyeTargets();

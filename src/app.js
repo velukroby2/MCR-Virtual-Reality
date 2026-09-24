@@ -8,6 +8,7 @@ const $=s=>document.querySelector(s),model=createModel(),bank=new MediaBank(),ga
 const screens={tv:$('#tv'),left:$('#left'),right:$('#right')};
 let viewer,vr=false,flat=false,vrToken=0,ownsFullscreen=false,yaw=0,pitch=OPERATOR_POSE.pitch,drag=null,hover=null,inside=false,nx=0,ny=0,last=performance.now(),lastPaint=0,lastElapsedPaint=0;
 const tracker=new HeadTracker({onStatus:({state,message})=>{const waiting=state==='waiting'&&!message.startsWith('No sensor');if(vr&&(!waiting&&state!=='tracking'&&state!=='off'))notify(message);}});
+const GRAPHICS_KEY='mcr-vr-graphics-v1';
 function notify(message){$('#message').textContent=message;viewer?.message(message);}
 function draw(){paintScreens(screens,bank,model.state);viewer?.texturesChanged();}
 function update(){const s=model.state;$('#selected').textContent=SOURCES.find(x=>x.id===s.selected).name;$('#output').textContent=SOURCES.find(x=>x.id===s.output).name;$('#mode').textContent=s.mode==='live'?'ON LIVE':s.mode==='break'?'AD BREAK':'OFF LIVE';$('#mode').className=s.mode;
@@ -21,12 +22,12 @@ function resize(){const box=$('#stage').getBoundingClientRect();viewer?.resize(b
 async function enterVR(sensors){
   if(!viewer){notify('3D is unavailable. Enable browser hardware acceleration or use Large screens.');return;}
   if(vr)return;const token=++vrToken;const permission=sensors?tracker.enable():Promise.resolve({ok:false,message:'Stereo preview. Drag to look; gaze to select.'});if(!sensors)tracker.disable();
-  $('#setup').close();chooseView(false);vr=true;document.body.classList.add('vr');viewer.fov=Number($('#fov').value);viewer.stereo.eyeSep=Number($('#ipd').value)/1000;viewer.lens.uniforms.warp.value=Number($('#warp').value);yaw=0;pitch=OPERATOR_POSE.pitch;viewer.camera.rotation.set(pitch,0,0,'YXZ');viewer.setVR(true);gaze.reset();resize();bank.prime();
+  $('#setup').close();chooseView(false);vr=true;document.body.classList.add('vr');viewer.fov=Number($('#fov').value);viewer.stereo.eyeSep=Number($('#ipd').value)/1000;viewer.lens.uniforms.warp.value=Number($('#warp').value);applyGraphicsSettings();yaw=0;pitch=OPERATOR_POSE.pitch;viewer.camera.rotation.set(pitch,0,0,'YXZ');viewer.setVR(true);gaze.reset();resize();bank.prime();
   try{if(document.documentElement.requestFullscreen&&!document.fullscreenElement){await document.documentElement.requestFullscreen();if(!vr||token!==vrToken){if(!vr&&document.fullscreenElement===document.documentElement)await document.exitFullscreen();return;}ownsFullscreen=true;}}catch{}
   if(!vr||token!==vrToken)return;
   try{await screen.orientation?.lock?.('landscape');}catch{}
   if(!vr||token!==vrToken){if(!vr)try{screen.orientation?.unlock?.();}catch{}return;}
-  const result=await permission;if(!vr||token!==vrToken)return;const resolution=viewer.resolutionInfo(),quality=resolution.native?'Native phone resolution':'Maximum GPU-safe resolution';notify(sensors&&result.ok?`${quality} · low-latency tracking active · stay seated.`:result.message);resize();
+  const result=await permission;if(!vr||token!==vrToken)return;const resolution=viewer.resolutionInfo(),graphics=viewer.graphicsInfo(),quality=graphics.reduced?'Emergency 1× graphics':resolution.native?'Full device resolution':graphics.renderScale<1?`${Math.round(graphics.renderScale*100)}% device resolution`:'Maximum GPU-safe resolution',smoothing=graphics.msaaSamples?`${graphics.msaaSamples}× edge smoothing`:'edge smoothing off';notify(sensors&&result.ok?`${quality} · ${smoothing} · low-latency tracking active · stay seated.`:result.message);resize();
 }
 function exitVR(){if(!vr)return;vr=false;vrToken++;tracker.disable();gaze.reset();viewer.setVR(false);document.body.classList.remove('vr');$('#rotate').hidden=true;if(ownsFullscreen&&document.fullscreenElement)void document.exitFullscreen().catch(()=>{});ownsFullscreen=false;try{screen.orientation?.unlock?.();}catch{}center();resize();}
 function trigger(){const hit=viewer?.pick(0,0);if(hit){action(hit.action);if(vr)gaze.latch(hit.key);}}
@@ -36,10 +37,26 @@ if(viewer){viewer.onPhotoStatus=ready=>{$('#photo-view').disabled=!ready;$('#pho
 model.subscribe(update);update();updateViewButtons();
 try{await bank.load();}catch(error){notify(error.message+' Built-in placeholders are still shown.');}
 for(const button of document.querySelectorAll('[data-action]'))button.addEventListener('click',()=>action(button.dataset.action));
-$('#room-view').onclick=()=>chooseEnvironment('studio');$('#photo-view').onclick=()=>chooseEnvironment('photo');$('#flat-view').onclick=()=>chooseView(true);$('#reduced').onchange=event=>viewer?.setQuality(event.target.checked);$('#recenter').onclick=center;$('#rotate-exit').onclick=exitVR;
+$('#room-view').onclick=()=>chooseEnvironment('studio');$('#photo-view').onclick=()=>chooseEnvironment('photo');$('#flat-view').onclick=()=>chooseView(true);$('#reduced').onchange=event=>{viewer?.setQuality(event.target.checked);updateGraphicsNotes();};$('#recenter').onclick=center;$('#rotate-exit').onclick=exitVR;
 function updateSetupValues(){for(const[id,suffix]of[['fov','°'],['warp',''],['ipd',' mm']])$(`#${id}-value`).textContent=$(`#${id}`).value+suffix;}
 for(const id of ['fov','warp','ipd'])$(`#${id}`).addEventListener('input',updateSetupValues);updateSetupValues();
-$('#vr-open').onclick=()=>{const ratio=viewer?.nativePixelRatio??devicePixelRatio??1;$('#resolution-note').textContent=`Starts at the phone's full ${Number(ratio).toFixed(2).replace(/\.00$/,'')}× display density and only steps down if needed to prevent judder.`;$('#tracking-note').textContent=isSecureContext?'Use a landscape phone with motion sensors.':'Head tracking requires trusted HTTPS. Use your Render link.';$('#setup').showModal();};
+function selectedGraphics(){return{renderScale:Number($('#quality-resolution').value),msaa:Number($('#quality-msaa').value),shadowSize:Number($('#quality-shadows').value),adaptive:$('#quality-adaptive').checked};}
+function updateGraphicsNotes(info=viewer?.graphicsInfo()){
+  if(!info)return;const dpr=Number(info.nativePixelRatio).toFixed(2).replace(/\.00$/,''),scale=Math.round(info.renderScale*100),aa=info.maxMsaaSamples?`${info.maxMsaaSamples}× eye-buffer MSAA`:'no eye-buffer MSAA',shadow=info.maxShadowSize?`${info.maxShadowSize}px shadows`:'no shadow maps';
+  const maxOption=$('#quality-msaa').querySelector('option[value="4"]');maxOption.textContent=info.maxMsaaSamples?`Maximum · ${info.maxMsaaSamples}× device`:'Maximum · unavailable';
+  $('#capability-note').textContent=`Detected browser/GPU limit: ${dpr}× display density, ${aa}, ${shadow}. Requests above a device limit are capped safely.`;
+  $('#resolution-note').textContent=info.reduced?'Emergency 1× graphics is overriding these device settings. Turn it off in the page footer to use them.':`${scale}% device resolution selected${info.adaptive?' · adaptive frame protection on.':' · fixed eye resolution.'}`;
+}
+function applyGraphicsSettings(save=false){
+  if(!viewer)return;const selection=selectedGraphics(),info=viewer.setGraphics(selection);updateGraphicsNotes(info);
+  if(save)try{localStorage.setItem(GRAPHICS_KEY,JSON.stringify(selection));}catch{}
+}
+function restoreGraphicsSettings(){
+  try{const saved=JSON.parse(localStorage.getItem(GRAPHICS_KEY)||'null');if(!saved)return;for(const[id,value]of[['quality-resolution',saved.renderScale],['quality-msaa',saved.msaa],['quality-shadows',saved.shadowSize]]){const control=$('#'+id);if(Array.from(control.options).some(option=>Number(option.value)===Number(value)))control.value=String(value);}if(typeof saved.adaptive==='boolean')$('#quality-adaptive').checked=saved.adaptive;}catch{}
+}
+restoreGraphicsSettings();applyGraphicsSettings();
+for(const id of ['quality-resolution','quality-msaa','quality-shadows','quality-adaptive'])$('#'+id).addEventListener('change',()=>applyGraphicsSettings(true));
+$('#vr-open').onclick=()=>{applyGraphicsSettings();$('#tracking-note').textContent=isSecureContext?'Use a landscape phone with motion sensors.':'Head tracking requires trusted HTTPS. Use your Render link.';$('#setup').showModal();};
 $('#start-vr').onclick=()=>void enterVR(true);$('#preview-vr').onclick=()=>void enterVR(false);$('#cancel-vr').onclick=()=>$('#setup').close();
 $('#files').onchange=event=>{const result=bank.local(event.target.files);$('#media-status').textContent=`${result.count} source(s) loaded for this session.`+(result.ignored.length?' Ignored (wrong name/format): '+result.ignored.join(', '):'');notify('Local files stay in your browser. Add them to media/ and redeploy to make them permanent.');};
 $('#audio').onchange=event=>{bank.audio=event.target.checked;bank.updateAudio();bank.prime();};

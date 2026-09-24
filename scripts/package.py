@@ -4,7 +4,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 from hashlib import sha256
 import os
 root = Path(__file__).resolve().parent.parent
-out = root.parent / "MCR-Live-Reference-Studio-v1.3.zip"
+out = root.parent / "MCR-Live-Reference-Studio-v1.4.zip"
 partial = out.with_suffix(".zip.partial")
 entries = {}
 # Source-only GitHub repo: Render builds dist/. Include the explicitly supplied panorama,
