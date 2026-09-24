@@ -1,4 +1,4 @@
-# MCR Live — Reference Studio 1.1
+# MCR Live — Reference Studio 1.2
 
 **Photo-referenced browser/phone-VR simulator. Six controls. Two monitors and one TV.**
 
@@ -6,7 +6,7 @@
 
 Upload/replace the **complete contents** of this ZIP in your existing GitHub repository, then commit and use **Render → Manual Deploy → Deploy latest commit**. This is a full scene/media update, not just the earlier one-file server fix. Include the new `assets/` folder, `src/room.js`, `vendor/RoundedBoxGeometry.js`, and all media files. Back up any custom media first.
 
-Your current working Web Service settings can remain **`yarn install; yarn build`** and **`yarn start`**. The `0.0.0.0` / Render `PORT` fix is retained. After deployment, refresh the browser (hard-refresh if you see the old room). The build log now identifies **MCR Reference Studio 1.1**.
+Your current working Web Service settings can remain **`yarn install; yarn build`** and **`yarn start`**. The `0.0.0.0` / Render `PORT` fix is retained. After deployment, refresh the browser (hard-refresh if you see the old room). The build log now identifies **MCR Reference Studio 1.2**.
 
 ## Upload this ZIP to GitHub → Render
 
@@ -47,7 +47,19 @@ A Static Site is still the simpler option for this entirely client-side app. An 
 
 The supplied photograph **is now included** as `assets/room-reference.jpg`, used locally for reflections and the original-photo view. Publishing this app also makes that photo (including visible people and room details) publicly accessible. No other reference photos or original film downloads are bundled.
 
-If an older phone struggles, enable **Lighter graphics** before entering the headset. This reduces resolution, disables shadow rendering and lowers screen-refresh work; the controls and footage remain available.
+If an older phone struggles, enable **Lighter graphics (lower resolution)** before entering the headset. This explicitly selects 1× rendering, disables shadow rendering and lowers screen-refresh work; the controls and footage remain available.
+
+## Phone sharpness and comfort changes in 1.2
+
+- Phone rendering now starts at the device's full `devicePixelRatio`. The old mobile cap of 1.35× has been removed, so a 3× phone now gets a 3× output canvas and full-size stereo eye buffers.
+- The renderer checks the GPU's texture, renderbuffer and viewport limits before allocating. It therefore uses the highest native density the browser/GPU can safely expose rather than blindly requesting an unsupported size.
+- VR begins at 100% eye-buffer scale. If sustained frame cadence drops below a comfortable range, only the internal eye buffers step down gradually (never below 70%); the phone output canvas remains native. When performance recovers, resolution climbs again. This avoids the sharpness-versus-judder trap that can itself cause nausea.
+- Mobile eye buffers use efficient 8-bit colour instead of bandwidth-heavy float buffers. Monitor canvases refresh less often in headset mode, leaving more frame time for head motion.
+- Head-orientation filtering is much lower latency. The previous slow smoothing could visibly trail a head turn; the new filter still calms sensor noise but catches up substantially faster.
+- The old undistorted HTML toolbar has been removed from the stereo view. Exit, recenter and room/photo controls remain as proper in-world stereo controls below the console.
+- Comfort-first defaults are now **75° FOV**, **0.08 lens correction**, and **64 mm eye spacing**. All three are adjustable before entry.
+
+These changes reduce the two main software causes here—undersampling and head-motion lag/judder—but phone VR still depends on the physical viewer. Centre the phone precisely, align both lens centres with your eyes, clean the lenses, tighten the headset enough that it does not slide, stay seated, and stop immediately at the first sign of discomfort. If straight edges seem to bend or “swim” during a turn, tune **Lens correction**. If the two views feel doubled or produce eye strain, tune **Eye spacing** a millimetre at a time.
 
 ## Exactly what the controls do
 
@@ -69,6 +81,8 @@ If an older phone struggles, enable **Lighter graphics** before entering the hea
 Breaks and video inputs loop. Return from a break manually. This is local browser simulation, not real broadcast transmission. Each visitor has independent state; it is not a shared control room.
 
 ## Included low-resolution footage / replacing media
+
+The bundled samples are unchanged in this update. For the later swap, follow **`REPLACE_MEDIA_LATER.md`**; no JavaScript changes are required.
 
 Your Drive link contains one film, **Sintel**, not a multi-video bundle. This edition includes three different short excerpts, all **640×360 at 24 fps, H.264 Baseline/yuv420p + AAC, with MP4 faststart**:
 
@@ -108,7 +122,7 @@ For a quick test, expand **Your footage & quick controls** and choose correctly 
 - Keyboard: **1**, **2**, **Space** (take), **B** (break), **L** (return), **O** (off), **R** (recenter).
 - **Cardboard/JioDive:** open the Render HTTPS URL directly in current Chrome (Android) or Safari (iPhone). Tap **Enter headset → Start with head tracking**, grant motion permission, rotate to landscape, and insert the phone.
 - Hold your gaze on a button for **1.3 seconds**. Look away before repeating it. Look below the desk controls for **ORIGINAL 360 / 3D ROOM**, **RECENTER** and **EXIT VR**. A touch trigger or standard gamepad A button can also activate the looked-at control. Space/Enter acts as the trigger in VR.
-- Adjust FOV and lens correction in the headset dialog. These are generic starting points, not manufacturer-certified lens profiles. Set lens correction to zero when viewing stereo without lenses.
+- Adjust FOV, lens correction and eye spacing in the headset dialog. These are generic starting points, not manufacturer-certified lens profiles. Set lens correction to zero when viewing stereo without lenses.
 - Dragging switches to manual looking. Exit and re-enter headset mode to re-enable sensors. Unsupported or denied motion falls back to drag-to-look. Browser fullscreen/orientation locking is best-effort, especially on iPhone.
 
 This is **rotation-only phone VR**, not a native Quest/Pico WebXR application. Stay seated; stop if uncomfortable or your phone gets warm. Hardware compatibility and optical fit require testing on your actual device.
@@ -133,6 +147,6 @@ The built site uses only local assets/modules. No accounts, analytics, camera or
 
 Unit/geometry tests and build/resource checks are included. The visibility regression casts a 25×17 grid over each screen from the center eye and both stereo eyes: **3,825 screen-area rays**, plus physical-button picking and viewport framing checks. This catches the actual panel/monitor occlusion, rather than testing only button centers. Video encoding was independently probed and fully decoded with FFmpeg; faststart and decoded frame counts were checked.
 
-Browser automation remains blocked by Windows application policy in this development environment; these geometry/media checks are **not a claim of visually verified WebGL shaders or physical headset performance**. Test on your actual phone, and use Lighter graphics if needed.
+Automated tests verify native-DPR sizing, GPU-safe limits, adaptive eye-buffer scaling, stereo rendering, tracking math, scene visibility and media handling. They are **not a substitute for physical headset testing**: optical fit, browser sensor latency and thermal throttling vary by phone. Test on the actual device, and use Lighter graphics only if adaptive native mode still stutters.
 
 Three.js 0.180.0 and its RoundedBoxGeometry helper are included under the MIT license; see `vendor/LICENSE.txt`. Media has its separate license described above. The supplied room photo is not covered by the film or Three.js licenses. Product names are descriptive references only; no affiliation is claimed.

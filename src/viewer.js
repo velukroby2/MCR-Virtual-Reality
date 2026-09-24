@@ -4,6 +4,20 @@ import {text,fill,actionActive} from './screens.js';
 import {OPERATOR_POSE,DISPLAY_LAYOUT,CONSOLE_POSE,desktopFov,buildStudio,box} from './room.js';
 export {OPERATOR_POSE,DISPLAY_LAYOUT,desktopFov};
 
+const MIN_ADAPTIVE_EYE_SCALE=.70;
+const SLOW_FRAME_SECONDS=.0205;
+const FAST_FRAME_SECONDS=.0174;
+
+export function displayPixelRatio(value=globalThis.devicePixelRatio){
+  return Number.isFinite(value)&&value>0?value:1;
+}
+
+export function fittedPixelRatio(desired,width,height,maxWidth=Infinity,maxHeight=Infinity){
+  const w=Number.isFinite(width)&&width>0?width:1,h=Number.isFinite(height)&&height>0?height:1;
+  const safeDesired=displayPixelRatio(desired),limitX=Number.isFinite(maxWidth)&&maxWidth>0?maxWidth/w:Infinity,limitY=Number.isFinite(maxHeight)&&maxHeight>0?maxHeight/h:Infinity;
+  return Math.max(Number.EPSILON,Math.min(safeDesired,limitX,limitY));
+}
+
 export function viewerCamera(){
   const camera=new T.PerspectiveCamera(62,1,.025,45);
   camera.position.set(OPERATOR_POSE.x,OPERATOR_POSE.y,OPERATOR_POSE.z);
@@ -26,13 +40,15 @@ export function referenceSphere(map,origin){
 
 export class Viewer{
   constructor(element,screens,state,renderer=null){
-    this.element=element;this.state=state;this.inVR=false;this.fov=80;this.warp=.12;this.hover=null;
+    this.element=element;this.state=state;this.inVR=false;this.fov=75;this.warp=.08;this.hover=null;
     this.environment='studio';this.photoReady=false;this.photoError=false;this.realRenderer=!renderer;
     this.renderer=renderer??new T.WebGLRenderer({canvas:element,antialias:true,powerPreference:'high-performance'});
     this.renderer.outputColorSpace=T.SRGBColorSpace;
     this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.12;
     this.mobile=typeof matchMedia==='function'?matchMedia('(pointer: coarse)').matches:innerWidth<900;
-    this.pixelRatio=Math.min(devicePixelRatio||1,this.mobile?1.35:1.8);this.renderer.setPixelRatio(this.pixelRatio);
+    this.nativePixelRatio=displayPixelRatio();this.pixelRatio=this.nativePixelRatio;this.reduced=false;
+    this.eyeScale=1;this.frameAverage=0;this.frameSamples=0;this.frameCooldown=0;
+    this.renderLimits=this.detectRenderLimits();this.renderer.setPixelRatio(this.pixelRatio);
     if(this.renderer.shadowMap){this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap;this.renderer.shadowMap.autoUpdate=false;this.renderer.shadowMap.needsUpdate=true;}
     this.anisotropy=Math.min(8,this.renderer.capabilities?.getMaxAnisotropy?.()||1);
     this.scene=new T.Scene();this.scene.background=new T.Color('#1b242c');
@@ -59,6 +75,16 @@ export class Viewer{
     const frontFill=new T.PointLight(0xcfe3f3,2.0,3.8,2);frontFill.position.set(0,2.35,-1.01);this.scene.add(frontFill);
     const screenSpill=new T.PointLight(0x5cb7e8,.34,1.8,2);screenSpill.position.set(0,1.50,-.9);this.scene.add(screenSpill);
     const backFill=new T.PointLight(0xd9e6eb,.65,3.0,2);backFill.position.set(0,2.43,1.91);this.scene.add(backFill);
+  }
+  detectRenderLimits(){
+    const fallback=this.renderer.capabilities?.maxTextureSize||Infinity;
+    let width=fallback,height=fallback,target=fallback;
+    try{
+      const gl=this.renderer.getContext?.(),viewport=gl?.getParameter?.(gl.MAX_VIEWPORT_DIMS),renderbuffer=gl?.getParameter?.(gl.MAX_RENDERBUFFER_SIZE);
+      if(viewport?.length>=2){width=Math.min(width,viewport[0]);height=Math.min(height,viewport[1]);}
+      if(Number.isFinite(renderbuffer)&&renderbuffer>0)target=Math.min(target,renderbuffer);
+    }catch{/* Conservative capability fallback above remains valid. */}
+    return{width,height,target};
   }
   monitor({id,w,h,x,y,z,yaw}){
     const m=this.studio.materials,group=new T.Group();group.name=`${id.toUpperCase()} display assembly`;group.position.set(x,y,z);group.rotation.y=yaw;this.room.add(group);
@@ -115,8 +141,9 @@ export class Viewer{
   }
   buildStereo(){
     this.stereo=new T.StereoCamera();this.stereo.aspect=.5;this.stereo.eyeSep=.064;
-    const type=this.renderer.extensions?.has('EXT_color_buffer_float')===false?T.UnsignedByteType:T.HalfFloatType;
-    this.targets=[new T.WebGLRenderTarget(8,8,{type}),new T.WebGLRenderTarget(8,8,{type})];
+    // RGBA8 is enough for the final phone display and halves eye-buffer bandwidth
+    // versus float targets on many mobile GPUs. Spatial resolution stays native.
+    this.targets=[new T.WebGLRenderTarget(8,8,{type:T.UnsignedByteType}),new T.WebGLRenderTarget(8,8,{type:T.UnsignedByteType})];
     this.targets.forEach(t=>{t.texture.colorSpace=T.LinearSRGBColorSpace;});
     this.composite=new T.Scene();this.ortho=new T.OrthographicCamera(-1,1,1,-1,0,1);
     this.lens=new T.ShaderMaterial({uniforms:{leftEye:{value:this.targets[0].texture},rightEye:{value:this.targets[1].texture},warp:{value:this.warp}},depthTest:false,depthWrite:false,toneMapped:true,
@@ -164,12 +191,37 @@ export class Viewer{
     this.environment=mode==='photo'?'photo':'studio';this.room.visible=this.environment==='studio';if(this.photo)this.photo.visible=this.environment==='photo';
     if(this.renderer.shadowMap)this.renderer.shadowMap.needsUpdate=true;this.sync();return true;
   }
-  setVR(value){this.inVR=value;this.cursor.visible=value;this.utilities.visible=value;this.anchor();}
-  setQuality(reduced){this.renderer.setPixelRatio(reduced?1:this.pixelRatio);if(this.renderer.shadowMap){this.renderer.shadowMap.enabled=!reduced;this.renderer.shadowMap.needsUpdate=true;}if(this.width)this.resize(this.width,this.height);}
+  setVR(value){
+    this.inVR=value;this.cursor.visible=value;this.utilities.visible=value;this.anchor();
+    if(value){this.eyeScale=1;this.frameAverage=0;this.frameSamples=0;this.frameCooldown=1.5;}
+    if(this.width)this.resize(this.width,this.height);
+  }
+  setQuality(reduced){this.reduced=Boolean(reduced);this.eyeScale=1;this.frameAverage=0;this.frameSamples=0;if(this.renderer.shadowMap){this.renderer.shadowMap.enabled=!this.reduced;this.renderer.shadowMap.needsUpdate=true;}if(this.width)this.resize(this.width,this.height);}
+  noteFrame(deltaSeconds){
+    if(!this.inVR||this.reduced||!Number.isFinite(deltaSeconds)||deltaSeconds<=0||deltaSeconds>.1)return false;
+    this.frameAverage=this.frameSamples?this.frameAverage*.94+deltaSeconds*.06:deltaSeconds;this.frameSamples++;
+    this.frameCooldown=Math.max(0,this.frameCooldown-deltaSeconds);if(this.frameSamples<90||this.frameCooldown>0)return false;
+    let next=this.eyeScale;
+    if(this.frameAverage>SLOW_FRAME_SECONDS&&next>MIN_ADAPTIVE_EYE_SCALE){next=Math.max(MIN_ADAPTIVE_EYE_SCALE,Math.round((next-.1)*100)/100);this.frameCooldown=1.5;}
+    else if(this.frameAverage<FAST_FRAME_SECONDS&&next<1){next=Math.min(1,Math.round((next+.05)*100)/100);this.frameCooldown=4;}
+    if(next===this.eyeScale)return false;this.eyeScale=next;this.resizeEyeTargets();this.onResolutionChange?.(this.resolutionInfo());return true;
+  }
+  resizeEyeTargets(){
+    if(!this.inVR||!this.width||!this.height)return;
+    const ratio=this.renderer.getPixelRatio(),limit=this.renderLimits.target,rawWidth=this.width*.5*ratio*this.eyeScale,rawHeight=this.height*ratio*this.eyeScale;
+    const limitScale=Math.min(1,limit/rawWidth,limit/rawHeight),width=Math.max(1,Math.floor(rawWidth*limitScale)),height=Math.max(1,Math.floor(rawHeight*limitScale));
+    this.targets.forEach(t=>t.setSize(width,height));
+  }
   resize(w,h){
-    if(!w||!h)return;this.width=Math.round(w);this.height=Math.round(h);this.renderer.setSize(this.width,this.height,false);
+    if(!w||!h)return;this.width=Math.round(w);this.height=Math.round(h);
+    const desired=this.reduced?1:this.nativePixelRatio;this.pixelRatio=fittedPixelRatio(desired,this.width,this.height,this.renderLimits.width,this.renderLimits.height);
+    this.renderer.setPixelRatio(this.pixelRatio);this.renderer.setSize(this.width,this.height,false);
     this.camera.aspect=w/h;this.camera.fov=this.inVR?this.fov:desktopFov(w/h);this.camera.updateProjectionMatrix();
-    if(this.inVR){const ratio=this.renderer.getPixelRatio();this.targets.forEach(t=>t.setSize(Math.max(1,Math.floor(w*.5*ratio)),Math.max(1,Math.floor(h*ratio))));}
+    this.resizeEyeTargets();
+  }
+  resolutionInfo(){
+    const ratio=this.renderer.getPixelRatio(),outputWidth=Math.max(1,Math.round((this.width||1)*ratio)),outputHeight=Math.max(1,Math.round((this.height||1)*ratio));
+    return{native:Math.abs(ratio-this.nativePixelRatio)<.01,pixelRatio:ratio,eyeScale:this.eyeScale,outputWidth,outputHeight,eyeWidth:this.targets[0].width,eyeHeight:this.targets[0].height};
   }
   render(progress){
     this.feedback.visible=this.inVR&&performance.now()<this.feedbackUntil;this.cursorMaterial.uniforms.progress.value=progress;this.scene.updateMatrixWorld();

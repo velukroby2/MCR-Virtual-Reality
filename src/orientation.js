@@ -4,7 +4,9 @@ const WORLD_UP = new Vector3(0, 1, 0);
 const SCREEN_NORMAL = new Vector3(0, 0, 1);
 const CAMERA_ALIGNMENT = new Quaternion(-Math.SQRT1_2, 0, 0, Math.SQRT1_2);
 const WATCHDOG_MS = 2500;
-const SMOOTHING_RATE = 18;
+// Keep just enough filtering to calm sensor noise without the long visual lag
+// that makes phone VR uncomfortable during head turns.
+const SMOOTHING_RATE = 45;
 const DEFAULT_DELTA_SECONDS = 1 / 60;
 const MAX_DELTA_SECONDS = 0.1;
 
