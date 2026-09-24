@@ -26,24 +26,24 @@ function noiseTexture(kind,anisotropy=1){
   const tex=new T.DataTexture(data,size,size);tex.colorSpace=T.SRGBColorSpace;tex.wrapS=tex.wrapT=T.RepeatWrapping;tex.generateMipmaps=true;tex.minFilter=T.LinearMipmapLinearFilter;tex.magFilter=T.LinearFilter;tex.anisotropy=anisotropy;tex.needsUpdate=true;return tex;
 }
 function alphaTexture(kind){
-  const size=128,data=new Uint8Array(size*size*4);
+  const size=256,data=new Uint8Array(size*size*4);
   for(let y=0;y<size;y++)for(let x=0;x<size;x++){
     const u=(x+.5)/size,v=(y+.5)/size;
     const a=kind==='spill'?Math.pow(Math.sin(Math.PI*u),.5)*Math.exp(-v*4.5):Math.pow(Math.max(0,1-Math.hypot((u-.5)*2,(v-.5)*2)),1.6);
     const i=(y*size+x)*4;data[i]=data[i+1]=data[i+2]=255;data[i+3]=Math.round(a*255);
   }
-  const tex=new T.DataTexture(data,size,size);tex.needsUpdate=true;return tex;
+  const tex=new T.DataTexture(data,size,size);tex.generateMipmaps=true;tex.minFilter=T.LinearMipmapLinearFilter;tex.magFilter=T.LinearFilter;tex.needsUpdate=true;return tex;
 }
 export function box(parent,name,w,h,d,x,y,z,material,radius=0){
-  const geo=radius?new RoundedBoxGeometry(w,h,d,2,Math.min(radius,w/2,h/2,d/2)):new T.BoxGeometry(w,h,d);
+  const geo=radius?new RoundedBoxGeometry(w,h,d,3,Math.min(radius,w/2,h/2,d/2)):new T.BoxGeometry(w,h,d);
   const mesh=new T.Mesh(geo,material);mesh.name=name;mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;
 }
 export function cylinder(parent,name,r1,r2,height,x,y,z,material,segments=24){const mesh=new T.Mesh(new T.CylinderGeometry(r1,r2,height,segments),material);mesh.name=name;mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;}
 export function tube(parent,name,points,radius,material){const curve=new T.CatmullRomCurve3(points.map(p=>new T.Vector3(...p)));const mesh=new T.Mesh(new T.TubeGeometry(curve,Math.max(16,points.length*8),radius,8,false),material);mesh.name=name;mesh.castShadow=true;parent.add(mesh);return mesh;}
 function contact(parent,x,z,w,d,opacity=.32,y=.006){const mesh=new T.Mesh(new T.PlaneGeometry(w,d),new T.MeshBasicMaterial({map:alphaTexture('contact'),color:0x030608,transparent:true,opacity,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1}));mesh.name='Soft contact shadow';mesh.rotation.x=-Math.PI/2;mesh.position.set(x,y,z);mesh.userData.ignorePick=true;parent.add(mesh);}
 function label(parent,value,w,h,x,y,z,rotationX=0){
-  const c=document.createElement('canvas');c.width=512;c.height=128;const ctx=c.getContext('2d');ctx.fillStyle='#d1d4cd';ctx.font='27px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(value,256,64);
-  const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;const mesh=new T.Mesh(new T.PlaneGeometry(w,h),new T.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false,toneMapped:false}));mesh.position.set(x,y,z);mesh.rotation.x=rotationX;mesh.userData.ignorePick=true;parent.add(mesh);return mesh;
+  const c=document.createElement('canvas');c.width=1024;c.height=256;const ctx=c.getContext('2d');ctx.setTransform?.(2,0,0,2,0,0);ctx.imageSmoothingEnabled=true;ctx.fillStyle='#e4e7e1';ctx.font='700 29px system-ui,"Segoe UI",Arial,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(value,256,64);
+  const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;tex.generateMipmaps=true;tex.minFilter=T.LinearMipmapLinearFilter;tex.magFilter=T.LinearFilter;tex.anisotropy=8;const mesh=new T.Mesh(new T.PlaneGeometry(w,h),new T.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false,toneMapped:false}));mesh.position.set(x,y,z);mesh.rotation.x=rotationX;mesh.userData.ignorePick=true;parent.add(mesh);return mesh;
 }
 function frontDeskGeometry(){
   // U-shaped desktop, with an inward curved operator cutout and rounded wings.

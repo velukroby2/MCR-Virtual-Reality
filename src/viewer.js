@@ -25,8 +25,8 @@ export function viewerCamera(){
   camera.focus=Infinity; // Parallel stereo frusta: never force far objects to diverge.
   return camera;
 }
-function canvas(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c;}
-function texture(c,anisotropy=1){const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;t.minFilter=T.LinearFilter;t.generateMipmaps=false;t.anisotropy=anisotropy;return t;}
+function canvas(w,h,scale=2){const c=document.createElement('canvas');c.width=Math.round(w*scale);c.height=Math.round(h*scale);const ctx=c.getContext?.('2d');ctx?.setTransform?.(scale,0,0,scale,0,0);if(ctx){ctx.imageSmoothingEnabled=true;if('imageSmoothingQuality'in ctx)ctx.imageSmoothingQuality='high';}return c;}
+function texture(c,anisotropy=1,mipmaps=true){const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;t.magFilter=T.LinearFilter;t.minFilter=mipmaps?T.LinearMipmapLinearFilter:T.LinearFilter;t.generateMipmaps=mipmaps;t.anisotropy=anisotropy;return t;}
 function visible(object){for(;object;object=object.parent)if(!object.visible)return false;return true;}
 export function referenceSphere(map,origin){
   const geometry=new T.SphereGeometry(25,80,48);geometry.scale(-1,1,1);
@@ -50,7 +50,7 @@ export class Viewer{
     this.eyeScale=1;this.frameAverage=0;this.frameSamples=0;this.frameCooldown=0;
     this.renderLimits=this.detectRenderLimits();this.renderer.setPixelRatio(this.pixelRatio);
     if(this.renderer.shadowMap){this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap;this.renderer.shadowMap.autoUpdate=false;this.renderer.shadowMap.needsUpdate=true;}
-    this.anisotropy=Math.min(8,this.renderer.capabilities?.getMaxAnisotropy?.()||1);
+    this.anisotropy=Math.min(16,this.renderer.capabilities?.getMaxAnisotropy?.()||1);this.msaaSamples=Math.min(4,this.renderer.capabilities?.maxSamples||0);
     this.scene=new T.Scene();this.scene.background=new T.Color('#1b242c');
     this.camera=viewerCamera();this.scene.add(this.camera);
     this.room=new T.Group();this.room.name='Interactive rebuilt control room';this.scene.add(this.room);
@@ -69,8 +69,8 @@ export class Viewer{
     const ambient=new T.HemisphereLight(0xd4e3eb,0x39424c,.68);this.scene.add(ambient);
     const key=new T.SpotLight(0xffedd5,33,7.5,1.15,.7,2);
     key.name='Soft ceiling key light';key.position.set(.35,2.59,.16);key.target.position.set(0,.63,-.35);
-    key.castShadow=true;key.shadow.mapSize.set(this.mobile?1024:1536,this.mobile?1024:1536);
-    key.shadow.bias=-.0003;key.shadow.normalBias=.014;key.shadow.radius=3.5;key.shadow.camera.near=.2;key.shadow.camera.far=7;
+    const shadowSize=Math.min(2048,this.renderLimits.target||2048);key.castShadow=true;key.shadow.mapSize.set(shadowSize,shadowSize);
+    key.shadow.bias=-.0003;key.shadow.normalBias=.014;key.shadow.radius=2.5;key.shadow.camera.near=.2;key.shadow.camera.far=7;
     this.scene.add(key,key.target);
     const frontFill=new T.PointLight(0xcfe3f3,2.0,3.8,2);frontFill.position.set(0,2.35,-1.01);this.scene.add(frontFill);
     const screenSpill=new T.PointLight(0x5cb7e8,.34,1.8,2);screenSpill.position.set(0,1.50,-.9);this.scene.add(screenSpill);
@@ -110,7 +110,7 @@ export class Viewer{
     for(const x of [-.694,.694])for(const y of [-.168,.168])box(panel,'Console countersunk screw',.007,.007,.002,x,y,.012,m.metal,.002);
   }
   makeButton(parent,id,label,x,y,w,h,overlay=false){
-    const c=canvas(480,160),t=texture(c,this.anisotropy),m=this.studio.materials;
+    const c=canvas(480,160),t=texture(c,this.anisotropy,true),m=this.studio.materials;
     box(parent,`${label} key housing`,w+.006,h+.006,.011,x,y,.018,m.black,.004);
     const face=new T.Mesh(new T.PlaneGeometry(w,h),new T.MeshBasicMaterial({map:t,depthTest:!overlay,toneMapped:false}));
     face.name=`${label} clickable face`;face.position.set(x,y,.024);face.userData.action=id;face.renderOrder=overlay?95:0;parent.add(face);
@@ -122,9 +122,9 @@ export class Viewer{
       const accent=b.id==='off'?'#dc887b':b.id==='adBreak'?'#e9b567':b.id==='takeLive'||b.id==='returnLive'?'#90c7ac':'#9ebac9';
       fill(ctx,0,0,480,160,hover?'#304553':on?'#303d42':'#17252e');
       fill(ctx,0,0,7,160,hover?'#ffce9a':on?accent:'#344b57');
-      ctx.strokeStyle=hover?'#f0bd8b':on?accent:'#3b525d';ctx.lineWidth=2;ctx.strokeRect(2,2,476,156);
-      text(ctx,b.id==='environment'?(this.environment==='photo'?'3D ROOM':'ORIGINAL 360'):b.label,240,77,b.id==='off'?31:33,hover?'#fff1df':'#e5eded','center');
-      if(CONTROLS.some(c=>c.id===b.id)){text(ctx,on?'●':'○',442,132,16,on?accent:'#627880','right');text(ctx,['inputA','inputB'].includes(b.id)?'SOURCE':b.id==='off'?'RESCUE':'CHANNEL',25,132,14,'#91a4ad');}
+      ctx.strokeStyle=hover?'#f0bd8b':on?accent:'#55707c';ctx.lineWidth=3;ctx.strokeRect(2,2,476,156);
+      text(ctx,b.id==='environment'?(this.environment==='photo'?'3D ROOM':'ORIGINAL 360'):b.label,240,74,b.id==='off'?33:36,hover?'#fff1df':'#f3f7f5','center',750);
+      if(CONTROLS.some(c=>c.id===b.id)){text(ctx,on?'●':'○',447,131,20,on?accent:'#8ba1aa','right',700);text(ctx,['inputA','inputB'].includes(b.id)?'SOURCE':b.id==='off'?'RESCUE OUTPUT':'CHANNEL ACTION',25,131,19,'#c4d4da','left',700);}
       b.t.needsUpdate=true;
     }
   }
@@ -143,7 +143,7 @@ export class Viewer{
     this.stereo=new T.StereoCamera();this.stereo.aspect=.5;this.stereo.eyeSep=.064;
     // RGBA8 is enough for the final phone display and halves eye-buffer bandwidth
     // versus float targets on many mobile GPUs. Spatial resolution stays native.
-    this.targets=[new T.WebGLRenderTarget(8,8,{type:T.UnsignedByteType}),new T.WebGLRenderTarget(8,8,{type:T.UnsignedByteType})];
+    this.targets=[new T.WebGLRenderTarget(8,8,{type:T.UnsignedByteType,samples:this.msaaSamples,resolveDepthBuffer:false}),new T.WebGLRenderTarget(8,8,{type:T.UnsignedByteType,samples:this.msaaSamples,resolveDepthBuffer:false})];
     this.targets.forEach(t=>{t.texture.colorSpace=T.LinearSRGBColorSpace;});
     this.composite=new T.Scene();this.ortho=new T.OrthographicCamera(-1,1,1,-1,0,1);
     this.lens=new T.ShaderMaterial({uniforms:{leftEye:{value:this.targets[0].texture},rightEye:{value:this.targets[1].texture},warp:{value:this.warp}},depthTest:false,depthWrite:false,toneMapped:true,
@@ -179,7 +179,7 @@ export class Viewer{
       // The real room's photograph also supplies the rebuilt materials' soft reflections.
       let pmrem,probeMap;try{
         // Keep the visible panorama full-resolution, but make the rough reflection probe small.
-        const probe=canvas(this.mobile?512:1024,this.mobile?256:512);probe.getContext('2d').drawImage(map.image,0,0,probe.width,probe.height);
+        const probe=canvas(this.mobile?512:1024,this.mobile?256:512,1);probe.getContext('2d').drawImage(map.image,0,0,probe.width,probe.height);
         probeMap=texture(probe);probeMap.mapping=T.EquirectangularReflectionMapping;pmrem=new T.PMREMGenerator(this.renderer);
         this.environmentTarget=pmrem.fromEquirectangular(probeMap);this.scene.environment=this.environmentTarget.texture;this.scene.environmentIntensity=.70;this.scene.environmentRotation.y=Math.PI/2;
       }catch(error){console.warn('Panorama reflections unavailable; direct room lighting remains active.',error);}finally{probeMap?.dispose();pmrem?.dispose();}
@@ -196,7 +196,7 @@ export class Viewer{
     if(value){this.eyeScale=1;this.frameAverage=0;this.frameSamples=0;this.frameCooldown=1.5;}
     if(this.width)this.resize(this.width,this.height);
   }
-  setQuality(reduced){this.reduced=Boolean(reduced);this.eyeScale=1;this.frameAverage=0;this.frameSamples=0;if(this.renderer.shadowMap){this.renderer.shadowMap.enabled=!this.reduced;this.renderer.shadowMap.needsUpdate=true;}if(this.width)this.resize(this.width,this.height);}
+  setQuality(reduced){this.reduced=Boolean(reduced);this.eyeScale=1;this.frameAverage=0;this.frameSamples=0;const samples=this.reduced?0:this.msaaSamples;for(const target of this.targets)if(target.samples!==samples){target.samples=samples;target.dispose();}if(this.renderer.shadowMap){this.renderer.shadowMap.enabled=!this.reduced;this.renderer.shadowMap.needsUpdate=true;}if(this.width)this.resize(this.width,this.height);}
   noteFrame(deltaSeconds){
     if(!this.inVR||this.reduced||!Number.isFinite(deltaSeconds)||deltaSeconds<=0||deltaSeconds>.1)return false;
     this.frameAverage=this.frameSamples?this.frameAverage*.94+deltaSeconds*.06:deltaSeconds;this.frameSamples++;

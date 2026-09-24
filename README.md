@@ -1,4 +1,4 @@
-# MCR Live — Reference Studio 1.2
+# MCR Live — Reference Studio 1.3
 
 **Photo-referenced browser/phone-VR simulator. Six controls. Two monitors and one TV.**
 
@@ -6,7 +6,7 @@
 
 Upload/replace the **complete contents** of this ZIP in your existing GitHub repository, then commit and use **Render → Manual Deploy → Deploy latest commit**. This is a full scene/media update, not just the earlier one-file server fix. Include the new `assets/` folder, `src/room.js`, `vendor/RoundedBoxGeometry.js`, and all media files. Back up any custom media first.
 
-Your current working Web Service settings can remain **`yarn install; yarn build`** and **`yarn start`**. The `0.0.0.0` / Render `PORT` fix is retained. After deployment, refresh the browser (hard-refresh if you see the old room). The build log now identifies **MCR Reference Studio 1.2**.
+Your current working Web Service settings can remain **`yarn install; yarn build`** and **`yarn start`**. The `0.0.0.0` / Render `PORT` fix is retained. After deployment, refresh the browser (hard-refresh if you see the old room). The build log now identifies **MCR Reference Studio 1.3**.
 
 ## Upload this ZIP to GitHub → Render
 
@@ -49,7 +49,12 @@ The supplied photograph **is now included** as `assets/room-reference.jpg`, used
 
 If an older phone struggles, enable **Lighter graphics (lower resolution)** before entering the headset. This explicitly selects 1× rendering, disables shadow rendering and lowers screen-refresh work; the controls and footage remain available.
 
-## Phone sharpness and comfort changes in 1.2
+## Phone sharpness and comfort changes in 1.2–1.3
+
+- Each off-screen stereo eye now uses up to **4× MSAA**. This is the important 1.3 correction: anti-aliasing on the outer WebGL canvas does not affect an eye rendered into a texture, so the earlier build could still show stair-stepped TV frames, desk edges and shadows despite using native phone resolution.
+- The TV and monitor UI canvases are now **2048×1152**. Desk buttons, headset utilities, status messages and room labels are rendered at 2× internal resolution, then downsampled cleanly.
+- Textures containing writing use trilinear mipmaps and up to 16× anisotropic filtering. Small labels were enlarged, made heavier and given higher contrast; the button sublabels are now 19 px logical text instead of 14 px.
+- The primary shadow map is now 2048×2048, soft contact maps are doubled, and rounded boundaries use smoother geometry.
 
 - Phone rendering now starts at the device's full `devicePixelRatio`. The old mobile cap of 1.35× has been removed, so a 3× phone now gets a 3× output canvas and full-size stereo eye buffers.
 - The renderer checks the GPU's texture, renderbuffer and viewport limits before allocating. It therefore uses the highest native density the browser/GPU can safely expose rather than blindly requesting an unsupported size.

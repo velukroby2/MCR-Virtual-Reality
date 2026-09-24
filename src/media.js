@@ -28,9 +28,9 @@ export class MediaBank{
     if(iw&&ih&&!item.error&&(item.kind!=='video'||item.el.readyState>=2)){
       const ratio=Math.min(w/iw,h/ih),dw=iw*ratio,dh=ih*ratio;ctx.drawImage(item.el,x+(w-dw)/2,y+(h-dh)/2,dw,dh);
     }else if(item?.poster?.naturalWidth&&!item.error){
-      const ratio=Math.min(w/item.poster.naturalWidth,h/item.poster.naturalHeight),dw=item.poster.naturalWidth*ratio,dh=item.poster.naturalHeight*ratio;ctx.drawImage(item.poster,x+(w-dw)/2,y+(h-dh)/2,dw,dh);ctx.fillStyle='#101c22cb';ctx.fillRect(x,y+h-23,w,23);ctx.font='11px Arial';ctx.fillStyle='#d3e2e8';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('VIDEO POSTER · LOADING',x+w/2,y+h-11);
-    }else{ctx.fillStyle=source.color+'22';ctx.fillRect(x,y,w,h);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=source.color;ctx.font=`600 ${Math.max(13,w*.065)}px Arial`;ctx.fillText(source.name.toUpperCase(),x+w/2,y+h*.43);ctx.fillStyle='#a6b7c0';ctx.font=`${Math.max(9,w*.022)}px Arial`;ctx.fillText(item?.error?'MEDIA UNAVAILABLE · USE H.264 MP4':'PLACEHOLDER / LOADING',x+w/2,y+h*.61);}
-    if(item?.blocked){ctx.fillStyle='#201910e8';ctx.fillRect(x,y+h-24,w,24);ctx.fillStyle='#f3be8d';ctx.font='12px Arial';ctx.textAlign='center';ctx.fillText('Tap a control to enable video playback',x+w/2,y+h-12);}
+      const ratio=Math.min(w/item.poster.naturalWidth,h/item.poster.naturalHeight),dw=item.poster.naturalWidth*ratio,dh=item.poster.naturalHeight*ratio;ctx.drawImage(item.poster,x+(w-dw)/2,y+(h-dh)/2,dw,dh);ctx.fillStyle='#101c22e6';ctx.fillRect(x,y+h-30,w,30);ctx.font='700 15px system-ui,Arial';ctx.fillStyle='#e3f0f4';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('VIDEO POSTER · LOADING',x+w/2,y+h-15);
+    }else{ctx.fillStyle=source.color+'22';ctx.fillRect(x,y,w,h);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=source.color;ctx.font=`700 ${Math.max(18,w*.07)}px system-ui,Arial`;ctx.fillText(source.name.toUpperCase(),x+w/2,y+h*.43);ctx.fillStyle='#c7d5db';ctx.font=`650 ${Math.max(14,w*.03)}px system-ui,Arial`;ctx.fillText(item?.error?'MEDIA UNAVAILABLE · USE H.264 MP4':'PLACEHOLDER / LOADING',x+w/2,y+h*.62);}
+    if(item?.blocked){ctx.fillStyle='#201910ed';ctx.fillRect(x,y+h-30,w,30);ctx.fillStyle='#ffd0a3';ctx.font='700 15px system-ui,Arial';ctx.textAlign='center';ctx.fillText('TAP A CONTROL TO ENABLE VIDEO',x+w/2,y+h-15);}
   }
   dispose(){for(const item of Object.values(this.items)){if(item.kind==='video')item.el.pause();if(item.blob)URL.revokeObjectURL(item.url);}}
 }
